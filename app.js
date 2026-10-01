@@ -235,7 +235,7 @@ async function onJoin(ev) {
     saveUser({ id: swimmer.id, name: swimmer.name, pin: pin.value });
     form.reset();
     toast(`Welcome to the pool, ${swimmer.name}!`, 'success');
-    go('leaderboard');
+    go(state.photoFile ? 'add' : 'leaderboard'); // a shared photo is waiting
   } catch (e) {
     setFieldError('join-name-error', errorText(e));
     $('#join-name').focus(); // announces the error via aria-describedby
@@ -265,7 +265,7 @@ async function onSignin(ev) {
     saveUser({ id: swimmer.id, name: swimmer.name, pin });
     form.reset();
     toast(`Welcome back, ${swimmer.name}!`, 'success');
-    go('leaderboard');
+    go(state.photoFile ? 'add' : 'leaderboard');
   } catch (e) {
     setFieldError('signin-error', errorText(e));
     $('#signin-pin').select();
@@ -792,7 +792,27 @@ function boot() {
   wireEvents();
   setupInstall();
   setupServiceWorker();
+  takeSharedPhoto();
   route();
+}
+
+// An image shared from another app (Android share sheet) is parked by sw.js,
+// which then opens ./?shared=1#add. Attach it to the Add form as the photo.
+async function takeSharedPhoto() {
+  if (!new URLSearchParams(location.search).has('shared')) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  try {
+    const cache = await caches.open('share-inbox');
+    const res = await cache.match('shared-photo');
+    if (!res) throw new Error('empty inbox');
+    await cache.delete('shared-photo');
+    const blob = await res.blob();
+    const name = decodeURIComponent(res.headers.get('X-Filename') || 'shared.jpg');
+    setPhoto(new File([blob], name, { type: blob.type || 'image/jpeg' }));
+    toast(state.user ? 'Photo added. Now enter your distance.' : 'Sign in to log a swim with this photo.');
+  } catch {
+    toast('Could not receive the shared image. Add it from the form instead.', 'error');
+  }
 }
 
 boot();

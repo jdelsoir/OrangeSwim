@@ -55,8 +55,33 @@ function putInCache(request, response) {
   return response;
 }
 
+// Web Share Target (Android): the manifest posts images shared from other apps here.
+// Park the image in its own cache (not orangeswim-*, so activate never wipes it),
+// then open the Add form, which picks it up.
+const SHARE_INBOX = 'share-inbox';
+
+async function receiveShare(req) {
+  try {
+    const form = await req.formData();
+    const file = form.getAll('photo').find((f) => f && typeof f !== 'string' && /^image\//.test(f.type));
+    const cache = await caches.open(SHARE_INBOX);
+    await cache.delete('shared-photo');
+    if (file) {
+      const headers = { 'Content-Type': file.type, 'X-Filename': encodeURIComponent(file.name || 'shared.jpg') };
+      await cache.put('shared-photo', new Response(file, { headers }));
+    }
+  } catch {
+    // The app shows an error when it finds nothing in the inbox.
+  }
+  return Response.redirect(new URL('./?shared=1#add', self.registration.scope).href, 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/share-target')) {
+    event.respondWith(receiveShare(req));
+    return;
+  }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Supabase, CDN: straight to network
