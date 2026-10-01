@@ -635,30 +635,33 @@ async function onAddSubmit(ev) {
 /* Install hints and service worker                                          */
 /* ======================================================================== */
 
-let deferredInstall = null;
+// The beforeinstallprompt event is captured early by install.js (window.__installPrompt).
+// Browsers without it (iOS, Firefox, some Android browsers) get manual steps instead.
+function installSteps() {
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) return 'Tap the Share button (square with an arrow), then Add to Home Screen.';
+  if (/android/i.test(ua)) return 'Open the browser menu (⋮), then Install app or Add to Home screen.';
+  return 'Use the install icon in the address bar, or the browser menu, then Install OrangeSwim.';
+}
 
 function setupInstall() {
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const box = $('#install-box');
   if (standalone) return;
-  if (isIOS) {
-    box.hidden = false;
-    $('#install-text').textContent = 'Install on iPhone: open this page in Safari, tap Share, then Add to Home Screen.';
-  }
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstall = e;
-    box.hidden = false;
-    $('#install-text').textContent = 'Install OrangeSwim on your home screen for one tap access.';
-    $('#install-btn').hidden = false;
-  });
+  const box = $('#install-box');
+  const text = $('#install-text');
+  box.hidden = false;
+  text.textContent = 'Add OrangeSwim to your home screen for one tap access.';
   $('#install-btn').addEventListener('click', async () => {
-    if (!deferredInstall) return;
-    deferredInstall.prompt();
-    await deferredInstall.userChoice.catch(() => null);
-    deferredInstall = null;
-    $('#install-btn').hidden = true;
+    const prompt = window.__installPrompt;
+    if (!prompt) {
+      text.textContent = installSteps();
+      return;
+    }
+    window.__installPrompt = null;
+    prompt.prompt();
+    const choice = await prompt.userChoice.catch(() => null);
+    if (!choice || choice.outcome !== 'accepted') text.textContent = installSteps();
   });
   window.addEventListener('appinstalled', () => {
     box.hidden = true;

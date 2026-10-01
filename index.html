@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="modulepreload" href="logic.js">
   <link rel="modulepreload" href="db.js">
+  <script src="install.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -194,8 +195,8 @@
 
       <div class="card me-actions">
         <div id="install-box" hidden>
-          <p id="install-text" class="hint"></p>
-          <button type="button" id="install-btn" class="btn btn-secondary btn-block" hidden>Install the app</button>
+          <p id="install-text" class="hint" aria-live="polite"></p>
+          <button type="button" id="install-btn" class="btn btn-secondary btn-block">Install the app</button>
         </div>
         <button type="button" id="logout-btn" class="btn btn-secondary btn-block">Log out</button>
         <p class="hint small" id="mode-info"></p>

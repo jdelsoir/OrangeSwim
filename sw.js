@@ -13,6 +13,7 @@ const PRECACHE = [
   './',
   './index.html',
   './styles.css',
+  './install.js',
   './app.js',
   './logic.js',
   './db.js',
