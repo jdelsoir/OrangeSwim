@@ -820,6 +820,12 @@ async function takeSharedPhoto() {
   } catch (e) {
     code = `read-${(e && e.name) || 'unknown'}`;
   }
+  if (code.startsWith('nofile')) {
+    // Chrome 153 on Android sends share target POSTs with no file parts (Chromium
+    // regression, see GoogleChromeLabs/squoosh#1503). Nothing to recover here.
+    toast('Your browser did not pass the image along (a known Chrome bug). Tap Add a photo instead.', 'error');
+    return;
+  }
   toast(`Could not receive the shared image (${code}). Add it from the form instead.`, 'error');
 }
 
