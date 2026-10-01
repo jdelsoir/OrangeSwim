@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OrangeSwim">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1590e6"/>
+      <stop offset="1" stop-color="#05487f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#water)"/>
+  <!-- swimmer: head and stroking arm -->
+  <circle cx="338" cy="214" r="44" fill="#FF7900"/>
+  <path d="M112 300 C 150 170, 250 120, 318 150" fill="none" stroke="#FF7900" stroke-width="40" stroke-linecap="round"/>
+  <!-- waves -->
+  <path d="M60 318 q 49 -40 98 0 t 98 0 t 98 0 t 98 0" fill="none" stroke="#ffffff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M60 398 q 49 -40 98 0 t 98 0 t 98 0 t 98 0" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

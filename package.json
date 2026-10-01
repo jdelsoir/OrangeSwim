@@ -1,0 +1,11 @@
+{
+  "name": "orangeswim",
+  "private": true,
+  "type": "module",
+  "description": "Friendly monthly swimming contest PWA. No build step; package.json only exists so Node treats the .js files as ES modules for tests.",
+  "scripts": {
+    "build": "echo No build step: the repository root is the static site.",
+    "test": "node --test tests/",
+    "start": "python3 -m http.server 8000"
+  }
+}

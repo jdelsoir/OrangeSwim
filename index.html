@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OrangeSwim</title>
+  <meta name="description" content="A friendly monthly swimming contest between colleagues. Log your swims and climb the leaderboard.">
+
+  <!-- GitHub Pages cannot send HTTP headers, so the CSP ships as a meta tag.
+       All JavaScript lives in files (inline scripts would be blocked). -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co; style-src 'self' 'unsafe-inline'; manifest-src 'self'; worker-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+
+  <meta name="theme-color" content="#FF7900">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OrangeSwim">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="modulepreload" href="logic.js">
+  <link rel="modulepreload" href="db.js">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="app-header">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="30" height="30">
+      <span>OrangeSwim</span>
+    </div>
+    <span id="header-user" class="header-user" hidden></span>
+  </header>
+
+  <div id="demo-banner" class="banner banner-demo" role="note" hidden>
+    Demo mode, data stored on this device only
+  </div>
+  <div id="update-banner" class="banner banner-update" role="status" hidden>
+    <span>A new version is available.</span>
+    <button type="button" id="update-reload" class="btn btn-small">Reload</button>
+  </div>
+
+  <main id="main" tabindex="-1">
+    <noscript><p class="status">OrangeSwim needs JavaScript to run.</p></noscript>
+    <p id="boot-status" class="status">Loading...</p>
+
+    <!-- Welcome: Join or Sign in -->
+    <section id="view-welcome" class="view view-welcome" hidden aria-labelledby="welcome-title">
+      <div class="hero">
+        <img src="icons/icon.svg" alt="" width="88" height="88" class="hero-icon">
+        <h1 id="welcome-title">OrangeSwim</h1>
+        <p class="hero-sub">Our friendly monthly swimming contest. Log your swims, climb the leaderboard, cheer each other on.</p>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Join or sign in">
+        <button type="button" role="tab" id="tab-join" class="tab" aria-selected="true" aria-controls="form-join">Join</button>
+        <button type="button" role="tab" id="tab-signin" class="tab" aria-selected="false" aria-controls="form-signin" tabindex="-1">Sign in</button>
+      </div>
+
+      <form id="form-join" class="card form" role="tabpanel" aria-labelledby="tab-join" novalidate>
+        <div class="field">
+          <label for="join-name">Your name</label>
+          <input id="join-name" name="name" type="text" autocomplete="nickname" autocapitalize="words" maxlength="30" required aria-describedby="join-name-error">
+          <p class="field-error" id="join-name-error"></p>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="join-pin">4 digit PIN</label>
+            <input id="join-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required aria-describedby="join-pin-error">
+          </div>
+          <div class="field">
+            <label for="join-pin2">Confirm PIN</label>
+            <input id="join-pin2" name="pin2" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required aria-describedby="join-pin-error">
+          </div>
+        </div>
+        <p class="field-error" id="join-pin-error"></p>
+        <p class="hint">The PIN is a friendly guard so nobody logs swims under your name by accident. It is not real security, so do not reuse an important PIN.</p>
+        <button type="submit" class="btn btn-primary btn-block">Join the contest</button>
+      </form>
+
+      <form id="form-signin" class="card form" role="tabpanel" aria-labelledby="tab-signin" novalidate hidden>
+        <div class="field">
+          <span class="label" id="signin-pick-label">Tap your name</span>
+          <div id="signin-names" class="chip-list" role="group" aria-labelledby="signin-pick-label"></div>
+        </div>
+        <div class="field">
+          <label for="signin-name">Name</label>
+          <input id="signin-name" name="name" type="text" list="swimmer-names" autocomplete="username" autocapitalize="words" maxlength="30" required>
+          <datalist id="swimmer-names"></datalist>
+        </div>
+        <div class="field">
+          <label for="signin-pin">PIN</label>
+          <input id="signin-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" required aria-describedby="signin-error">
+        </div>
+        <p class="field-error" id="signin-error"></p>
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      </form>
+    </section>
+
+    <!-- Leaderboard -->
+    <section id="view-leaderboard" class="view" hidden aria-labelledby="lb-title">
+      <h1 id="lb-title" class="view-title">Leaderboard</h1>
+      <div class="month-nav">
+        <button type="button" class="icon-btn month-prev" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <h2 class="month-label" aria-live="polite"></h2>
+        <button type="button" class="icon-btn month-next" aria-label="Next month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div id="lb-team" class="team-card" hidden></div>
+      <ol id="lb-list" class="leaderboard" aria-label="Ranking"></ol>
+      <div id="lb-status" class="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Add a session -->
+    <section id="view-add" class="view" hidden aria-labelledby="add-title">
+      <h1 id="add-title" class="view-title">Log a swim</h1>
+      <form id="form-add" class="card form" novalidate>
+        <div class="field">
+          <label for="add-date">Date</label>
+          <input id="add-date" name="date" type="date" required aria-describedby="add-date-error">
+          <p class="field-error" id="add-date-error"></p>
+        </div>
+        <div class="field">
+          <label for="add-meters">Distance</label>
+          <div class="input-suffix">
+            <input id="add-meters" name="meters" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="e.g. 1500" required aria-describedby="add-meters-error">
+            <span aria-hidden="true">m</span>
+          </div>
+          <div class="chip-list chips-quick" role="group" aria-label="Quick add distance">
+            <button type="button" class="chip" data-add-meters="250">+250</button>
+            <button type="button" class="chip" data-add-meters="500">+500</button>
+            <button type="button" class="chip" data-add-meters="1000">+1000</button>
+            <button type="button" class="chip chip-ghost" data-clear-meters>Clear</button>
+          </div>
+          <p class="field-error" id="add-meters-error"></p>
+        </div>
+        <div class="field">
+          <label for="add-pool">Pool <span class="optional">(optional)</span></label>
+          <input id="add-pool" name="pool" type="text" list="pool-list" maxlength="80" autocomplete="off" autocapitalize="words" placeholder="Where did you swim?">
+          <datalist id="pool-list"></datalist>
+        </div>
+        <div class="field">
+          <span class="label">Photo <span class="optional">(optional)</span></span>
+          <input id="add-photo" name="photo" type="file" accept="image/*" class="visually-hidden">
+          <label for="add-photo" class="btn btn-secondary photo-pick" id="photo-pick">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            <span>Add a photo</span>
+          </label>
+          <figure id="photo-preview" class="photo-preview" hidden>
+            <img id="photo-preview-img" alt="Selected photo preview">
+            <button type="button" id="photo-remove" class="btn btn-small btn-danger-ghost">Remove photo</button>
+          </figure>
+        </div>
+        <button type="submit" id="add-submit" class="btn btn-primary btn-block">Save swim</button>
+      </form>
+    </section>
+
+    <!-- Feed -->
+    <section id="view-feed" class="view" hidden aria-labelledby="feed-title">
+      <h1 id="feed-title" class="view-title">Feed</h1>
+      <div class="month-nav">
+        <button type="button" class="icon-btn month-prev" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <h2 class="month-label" aria-live="polite"></h2>
+        <button type="button" class="icon-btn month-next" aria-label="Next month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <ul id="feed-list" class="feed" aria-label="Swims this month"></ul>
+      <div id="feed-status" class="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Me -->
+    <section id="view-me" class="view" hidden aria-labelledby="me-title">
+      <h1 id="me-title" class="view-title">Me</h1>
+      <div class="stats" id="me-stats">
+        <div class="stat"><span class="stat-value" id="stat-month">0 m</span><span class="stat-label">This month</span></div>
+        <div class="stat"><span class="stat-value" id="stat-total">0 m</span><span class="stat-label">All time</span></div>
+        <div class="stat"><span class="stat-value" id="stat-count">0</span><span class="stat-label">Swims</span></div>
+      </div>
+      <h2 class="section-title">My swims</h2>
+      <ul id="me-list" class="my-sessions" aria-label="My swims"></ul>
+      <div id="me-status" class="status" aria-live="polite"></div>
+
+      <div class="card me-actions">
+        <div id="install-box" hidden>
+          <p id="install-text" class="hint"></p>
+          <button type="button" id="install-btn" class="btn btn-secondary btn-block" hidden>Install the app</button>
+        </div>
+        <button type="button" id="logout-btn" class="btn btn-secondary btn-block">Log out</button>
+        <p class="hint small" id="mode-info"></p>
+      </div>
+    </section>
+  </main>
+
+  <nav id="bottom-nav" class="bottom-nav" aria-label="Main" hidden>
+    <a href="#leaderboard" data-view="leaderboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg>
+      <span>Ranking</span>
+    </a>
+    <a href="#feed" data-view="feed">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6 0M2 14c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6 0M2 20c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6 0"/></svg>
+      <span>Feed</span>
+    </a>
+    <a href="#add" data-view="add" class="nav-add" aria-label="Log a swim">
+      <span class="nav-add-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span>Add</span>
+    </a>
+    <a href="#me" data-view="me" class="nav-me">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      <span>Me</span>
+    </a>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title">Delete this swim?</h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+        <button type="submit" value="ok" class="btn btn-danger" id="confirm-ok">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="lightbox" class="lightbox" aria-label="Photo">
+    <form method="dialog" class="lightbox-close-form">
+      <button type="submit" class="icon-btn lightbox-close" aria-label="Close photo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </form>
+    <img id="lightbox-img" alt="">
+    <p id="lightbox-caption" class="lightbox-caption"></p>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,60 @@
+# Test, then deploy OrangeSwim to GitHub Pages with GitHub Actions.
+# One-time setup: repo Settings, Pages, Source = "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Unit tests
+        run: node --test tests/*.test.mjs
+
+      # Publish only what the browser needs (no tests, scripts, workflow files).
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude '.git' --exclude '.github' --exclude '_site' \
+            --exclude 'tests' --exclude 'scripts' --exclude 'package.json' \
+            ./ _site/
+          touch _site/.nojekyll
+
+      # Rotate the service worker cache name with a content hash on every deploy.
+      - name: Stamp service worker cache version
+        run: python3 scripts/stamp_cache_version.py _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
