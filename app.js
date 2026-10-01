@@ -799,20 +799,28 @@ function boot() {
 // An image shared from another app (Android share sheet) is parked by sw.js,
 // which then opens ./?shared=1#add. Attach it to the Add form as the photo.
 async function takeSharedPhoto() {
-  if (!new URLSearchParams(location.search).has('shared')) return;
+  const status = new URLSearchParams(location.search).get('shared');
+  if (status === null) return;
   history.replaceState(null, '', location.pathname + location.hash);
+  let code = status;
   try {
-    const cache = await caches.open('share-inbox');
-    const res = await cache.match('shared-photo');
-    if (!res) throw new Error('empty inbox');
-    await cache.delete('shared-photo');
-    const blob = await res.blob();
-    const name = decodeURIComponent(res.headers.get('X-Filename') || 'shared.jpg');
-    setPhoto(new File([blob], name, { type: blob.type || 'image/jpeg' }));
-    toast(state.user ? 'Photo added. Now enter your distance.' : 'Sign in to log a swim with this photo.');
-  } catch {
-    toast('Could not receive the shared image. Add it from the form instead.', 'error');
+    if (status === 'ok') {
+      const cache = await caches.open('share-inbox');
+      const res = await cache.match('shared-photo');
+      if (res) {
+        await cache.delete('shared-photo');
+        const blob = await res.blob();
+        const name = decodeURIComponent(res.headers.get('X-Filename') || 'shared.jpg');
+        setPhoto(new File([blob], name, { type: blob.type || 'image/jpeg' }));
+        toast(state.user ? 'Photo added. Now enter your distance.' : 'Sign in to log a swim with this photo.');
+        return;
+      }
+      code = 'inbox-empty';
+    }
+  } catch (e) {
+    code = `read-${(e && e.name) || 'unknown'}`;
   }
+  toast(`Could not receive the shared image (${code}). Add it from the form instead.`, 'error');
 }
 
 boot();

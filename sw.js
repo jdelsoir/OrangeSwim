@@ -60,20 +60,50 @@ function putInCache(request, response) {
 // then open the Add form, which picks it up.
 const SHARE_INBOX = 'share-inbox';
 
+// Image type from the file's first bytes. Android apps often share without a
+// MIME type, which then arrives as application/octet-stream.
+function sniffImageType(bytes) {
+  const b = new Uint8Array(bytes.slice(0, 12));
+  const ascii = (from, to) => String.fromCharCode(...b.slice(from, to));
+  if (b[0] === 0xff && b[1] === 0xd8) return 'image/jpeg';
+  if (b[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png';
+  if (ascii(0, 3) === 'GIF') return 'image/gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (ascii(4, 8) === 'ftyp') return 'image/heic';
+  return '';
+}
+
 async function receiveShare(req) {
+  // `status` travels to the app in ?shared=, so a failure on a phone says which step broke.
+  let status = 'ok';
   try {
     const form = await req.formData();
-    const file = form.getAll('photo').find((f) => f && typeof f !== 'string' && /^image\//.test(f.type));
-    const cache = await caches.open(SHARE_INBOX);
-    await cache.delete('shared-photo');
-    if (file) {
-      const headers = { 'Content-Type': file.type, 'X-Filename': encodeURIComponent(file.name || 'shared.jpg') };
-      await cache.put('shared-photo', new Response(file, { headers }));
+    // Any file field counts; the bytes decide whether it is an image.
+    const files = [...form.values()].filter((v) => v && typeof v !== 'string');
+    if (!files.length) {
+      status = `nofile-${[...form.keys()].join('.') || 'none'}`;
+    } else {
+      status = `type-${files[0].type || 'none'}`;
+      for (const file of files) {
+        // Read the bytes now: on Android the File is backed by the sharing app's
+        // content URI, which may no longer be readable once this request ends.
+        const bytes = await file.arrayBuffer();
+        const type = /^image\//.test(file.type) ? file.type : sniffImageType(bytes);
+        if (!bytes.byteLength || !type) continue;
+        const headers = { 'Content-Type': type, 'X-Filename': encodeURIComponent(file.name || 'shared.jpg') };
+        const cache = await caches.open(SHARE_INBOX);
+        await cache.put('shared-photo', new Response(bytes, { headers }));
+        status = 'ok';
+        break;
+      }
     }
-  } catch {
-    // The app shows an error when it finds nothing in the inbox.
+  } catch (e) {
+    status = `err-${(e && e.name) || 'unknown'}`;
   }
-  return Response.redirect(new URL('./?shared=1#add', self.registration.scope).href, 303);
+  const target = new URL('./', self.registration.scope);
+  target.searchParams.set('shared', status.slice(0, 60));
+  target.hash = 'add';
+  return Response.redirect(target.href, 303);
 }
 
 self.addEventListener('fetch', (event) => {
